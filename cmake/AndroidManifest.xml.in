@@ -86,6 +86,9 @@
     <!-- Activity to choose a .qgs file to open -->
     <activity android:name="ch.opengis.@APP_PACKAGE_NAME@.QFieldProjectActivity" />
 
+    <!-- Activity to choose a DCS Layer to open -->
+    <activity android:name="ch.opengis.@APP_PACKAGE_NAME@.QFieldDCSProjectActivity" />
+
     <!-- Activity "Rate this app" -->
     <activity android:name="ch.opengis.@APP_PACKAGE_NAME@.QFieldAppRaterActivity" />
 

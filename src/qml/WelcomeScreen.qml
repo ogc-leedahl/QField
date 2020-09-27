@@ -8,6 +8,7 @@ import Theme 1.0
 Page {
   property alias model: table.model
   signal showOpenProjectDialog
+  signal showOpenDCSProjectDialog
 
   Rectangle {
     id: welcomeBackground
@@ -90,6 +91,14 @@ Page {
           text: qsTr( "Open local project" )
           onClicked: {
             showOpenProjectDialog()
+          }
+        }
+        QfButton {
+          id: dcsProjectButton
+          Layout.fillWidth: true
+          text: qsTr( "Open DCS project" )
+          onClicked: {
+            showOpenDCSProjectDialog()
           }
         }
         QfButton {

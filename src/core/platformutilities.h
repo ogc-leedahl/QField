@@ -84,6 +84,15 @@ class PlatformUtilities : public QObject
     Q_INVOKABLE virtual ProjectSource *openProject();
 
     /**
+     * Indicates the system that we want to open a DCS project.
+     * The system shall show a suitable user interface element (like a filebrowser)
+     * to let the user select a project.
+     * The call returns immediately and the returned ProjectSource will notify
+     * when the project has actually been chosen.
+     */
+    Q_INVOKABLE virtual ProjectSource *openDCSProject();
+
+    /**
      * Checks for positioning (GPS etc) permissions on the device.
      * If the permissions are not given, the user will be asked to grant
      * permissions.

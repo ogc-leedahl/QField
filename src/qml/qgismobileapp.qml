@@ -1524,6 +1524,10 @@ ApplicationWindow {
       __projectSource = platformUtilities.openProject()
     }
 
+    onShowOpenDCSProjectDialog: {
+      __projectSource = platformUtilities.openDCSProject()
+    }
+
     Keys.onReleased: {
       if (event.key === Qt.Key_Back || event.key === Qt.Key_Escape) {
         if ( qgisProject.fileName != '') {

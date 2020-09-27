@@ -221,6 +221,33 @@ ProjectSource *AndroidPlatformUtilities::openProject()
   return projectSource;
 }
 
+ProjectSource *AndroidPlatformUtilities::openDCSProject()
+{
+  checkWriteExternalStoragePermissions();
+
+  QAndroidJniObject activity = QAndroidJniObject::fromString( QStringLiteral( "ch.opengis.qfield.QFieldDCSProjectActivity" ) );
+  QAndroidJniObject intent = QAndroidJniObject( "android/content/Intent", "(Ljava/lang/String;)V", activity.object<jstring>() );
+
+  QAndroidJniObject packageName = QAndroidJniObject::fromString( QStringLiteral( "ch.opengis.qfield" ) );
+  QAndroidJniObject className = QAndroidJniObject::fromString( QStringLiteral( "ch.opengis.qfield.QFieldDCSProjectActivity" ) );
+
+  intent.callObjectMethod( "setClassName", "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;", packageName.object<jstring>(), className.object<jstring>() );
+
+  AndroidProjectSource *projectSource = nullptr;
+
+  if ( intent.isValid() )
+  {
+    projectSource = new AndroidProjectSource();
+    QtAndroid::startActivity( intent.object<jobject>(), 103, projectSource );
+  }
+  else
+  {
+    qDebug() << "Something went wrong creating the project intent";
+  }
+
+  return projectSource;
+}
+
 bool AndroidPlatformUtilities::checkPositioningPermissions() const
 {
   // First check for coarse permissions. If the user configured QField to only get coarse permissions
