@@ -103,10 +103,11 @@ void QgsQuickMapSettings::setCenterToLayer( QgsMapLayer *layer, bool shouldZoom 
 {
   Q_ASSERT( layer );
 
+  const QgsRectangle extent = mapSettings().layerToMapCoordinates( layer, layer->extent() );
   if ( shouldZoom )
-    setExtent( layer->extent() );
+    setExtent( extent );
   else
-    setCenter( QgsPoint( layer->extent().center() ) );
+    setCenter( QgsPoint( extent.center() ) );
 }
 
 double QgsQuickMapSettings::mapUnitsPerPoint() const
@@ -227,23 +228,35 @@ void QgsQuickMapSettings::onReadProject( const QDomDocument &doc )
   }
 
   QDomNodeList nodes = doc.elementsByTagName( "mapcanvas" );
-  if ( nodes.count() )
+  bool foundTheMapCanvas = false;
+  for ( int i = 0; i < nodes.size(); i++ )
   {
     QDomNode node = nodes.item( 0 );
+    QDomElement element = node.toElement();
 
-    mMapSettings.readXml( node );
+    if ( element.hasAttribute( QStringLiteral( "name" ) ) &&
+         element.attribute( QStringLiteral( "name" ) ) == QStringLiteral( "theMapCanvas" ) )
+    {
+      foundTheMapCanvas = true;
+      mMapSettings.readXml( node );
 
-    if ( !qgsDoubleNear( mMapSettings.rotation(), 0 ) )
-      QgsMessageLog::logMessage( tr( "Map Canvas rotation is not supported. Resetting from %1 to 0." ).arg( mMapSettings.rotation() ) );
-
-    mMapSettings.setRotation( 0 );
-
-    emit extentChanged();
-    emit destinationCrsChanged();
-    emit outputSizeChanged();
-    emit outputDpiChanged();
-    emit layersChanged();
+      if ( !qgsDoubleNear( mMapSettings.rotation(), 0 ) )
+        QgsMessageLog::logMessage( tr( "Map Canvas rotation is not supported. Resetting from %1 to 0." ).arg( mMapSettings.rotation() ) );
+    }
   }
+  if ( !foundTheMapCanvas )
+  {
+    mMapSettings.setDestinationCrs( mProject->crs() );
+    mMapSettings.setExtent( mMapSettings.fullExtent() );
+  }
+
+  mMapSettings.setRotation( 0 );
+
+  emit extentChanged();
+  emit destinationCrsChanged();
+  emit outputSizeChanged();
+  emit outputDpiChanged();
+  emit layersChanged();
 }
 
 double QgsQuickMapSettings::rotation() const
