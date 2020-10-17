@@ -199,7 +199,6 @@ ApplicationWindow {
             else {
                 resetIsBeingTouchedTimer.restart()
             }
-
         }
     }
 
@@ -751,7 +750,7 @@ ApplicationWindow {
           PropertyChanges {
             target: gpsButton
             iconSource: Theme.getThemeIcon( "ic_location_disabled_white_24dp" )
-            bgcolor: "#88212121"
+            bgcolor: Theme.darkGraySemiOpaque
           }
         },
 
