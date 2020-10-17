@@ -33,6 +33,7 @@ public class QFieldProjectListItem implements Comparable<QFieldProjectListItem>{
     public int getImageId(){
         return this.imageId;
     }
+    public void setImageId(int imageId) { this.imageId = imageId; }
 
     public int getType(){
         return this.type;

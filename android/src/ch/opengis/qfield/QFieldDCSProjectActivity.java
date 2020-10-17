@@ -1,178 +1,108 @@
 package ch.opengis.qfield;
 
-import java.io.File;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Arrays;
-
-import android.os.Bundle;
-import android.os.Environment;
-import android.net.Uri;
 import android.app.Activity;
-import android.app.ListActivity;
-import android.app.AlertDialog;
+import android.arch.lifecycle.*;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.util.Log;
-import android.view.View;
-import android.view.Window;
-import android.view.View.OnClickListener;
-import android.widget.ArrayAdapter;
-import android.widget.Toast;
-import android.widget.ListView;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.AdapterView.OnItemLongClickListener;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.text.TextUtils;
+import android.os.Bundle;
+import android.util.Log;
+import android.util.SparseBooleanArray;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.Toast;
 
-public class QFieldDCSProjectActivity extends Activity {
+import java.util.List;
 
-    private static final String TAG = "QField DCS Project Activity";
-    private String path;
-    private SharedPreferences sharedPreferences;
-    SharedPreferences.Editor editor;
+public class QFieldDCSProjectActivity extends Activity implements LifecycleOwner, ViewModelStoreOwner, ViewModelProvider.Factory {
+
+    private static final String TAG = "QField DCS Activity";
+    private static final ViewModelStore store = new ViewModelStore();
+    private QFieldDCSActivityModel model;
+    private LifecycleRegistry lifecycleRegistry;
     private ListView list;
+    private Button fetch;
 
     @Override
     public void onCreate(Bundle bundle) {
         Log.d(TAG, "onCreate() ");
         super.onCreate(bundle);
 
-        sharedPreferences = getPreferences(Context.MODE_PRIVATE);
-        editor = sharedPreferences.edit();
-        setContentView(R.layout.list_projects);
-        getActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#80CC28"))); 
+        setContentView(R.layout.list_layers);
+        getActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#80CC28")));
+        lifecycleRegistry = new LifecycleRegistry(this);
+        lifecycleRegistry.markState(Lifecycle.State.CREATED);
         drawView();
     }
 
     private void drawView() {
+        list = (ListView)findViewById(R.id.list);
+        fetch = (Button)findViewById(R.id.fetch);
 
-        setTitle(getString(R.string.select_project));
+        setTitle(getString(R.string.select_layers));
 
+        model = new ViewModelProvider(this, this).get(QFieldDCSActivityModel.class);
+        model.getValues().observe(this, new Observer<List<QFieldProjectListItem>>() {
+            @Override
+            public void onChanged(List<QFieldProjectListItem> qFieldProjectListItems) {
+                if(model.didLoadSucceed()) {
+                    QFieldProjectListAdapter adapter = new QFieldProjectListAdapter(QFieldDCSProjectActivity.this, qFieldProjectListItems);
+                    list.setAdapter(adapter);
+
+                } else Toast.makeText(QFieldDCSProjectActivity.this, model.getErrorMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+
+        model.getFetchEnabled().observe(this, new Observer<Boolean>() {
+            @Override
+            public void onChanged(Boolean aBoolean) {
+                fetch.setEnabled(aBoolean);
+            }
+        });
+
+        // Put the data into the list
+        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id){
+                Log.d(TAG, "onItemClick ");
+                QFieldDCSProjectActivity.this.onItemClick(position);
+            }
+        });
     }
 
     public void onRestart(){
         Log.d(TAG, "onRestart ");
 
-        // The first opened activity
-        if (!getIntent().hasExtra("path")) {
-            drawView();
-        }
+        drawView();
+        lifecycleRegistry.markState(Lifecycle.State.RESUMED);
         super.onRestart();
     }
+
     private void onItemClick(int position) {
         Log.d(TAG, "onListItemClick ");
 
         final QFieldProjectListItem item = (QFieldProjectListItem) list.getAdapter().getItem(position);
+
         if (item.getType() == QFieldProjectListItem.TYPE_SEPARATOR){
             return;
         }
-        // Show a warning if it's the first time the sd-card is used
-        boolean showSdCardWarning = sharedPreferences.getBoolean("ShowSdCardWarning", true);
-        if (item.getType() == QFieldProjectListItem.TYPE_SECONDARY_ROOT && showSdCardWarning){
-            AlertDialog alertDialog = new AlertDialog.Builder(this).create();
-            alertDialog.setTitle(getString(R.string.alert_sd_card_title));
-            alertDialog.setMessage(getString(R.string.alert_sd_card_message));
-            alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.alert_sd_card_ok), new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        startItemClickActivity(item);
-                    }
-                });
-            alertDialog.show();
-            editor.putBoolean("ShowSdCardWarning", false);
-            editor.commit();
-        }else {
-            startItemClickActivity(item);
-        }
-    }
 
-    private void startItemClickActivity(QFieldProjectListItem item){
-        File file = item.getFile();
-        Log.d(TAG, "file: "+file.getPath());                
-        if (file.isDirectory()) {
-            Intent intent = new Intent(this, QFieldDCSProjectActivity.class);
-            intent.putExtra("path", file.getPath());
-            intent.putExtra("label", item.getText());
-            startActivityForResult(intent, 123);
-        } else {
-            Intent data = new Intent();
+        // Update image
+        SparseBooleanArray positions = list.getCheckedItemPositions();
+        item.setImageId(positions.valueAt(position)
+                ? android.R.drawable.checkbox_on_background : android.R.drawable.checkbox_off_background);
+        ((QFieldProjectListAdapter)list.getAdapter()).notifyDataSetChanged();
 
-            Uri uri = Uri.fromFile(file);
-            data.setData(uri);
-            
-            Toast.makeText(this, getString(R.string.loading) + " " + file.getPath(), Toast.LENGTH_LONG).show();
-            setResult(Activity.RESULT_OK, data);
-
-            String lastUsedProjects = sharedPreferences.getString("LastUsedProjects", null);
-            ArrayList<String> lastUsedProjectsArray = new ArrayList<String>();
-            if (lastUsedProjects != null){
-                lastUsedProjectsArray = new ArrayList<String>(Arrays.asList(lastUsedProjects.split("--;--")));
-            }
-            // If the element is already present, delete it. It will be added again in the last position
-            lastUsedProjectsArray.remove(file.getPath());
-            if (lastUsedProjectsArray.size() >= 5){
-                lastUsedProjectsArray.remove(0);
-            }
-            // Add the project path to the array
-            lastUsedProjectsArray.add(file.getPath());
-
-            // Write the recent projects into the shared preferences
-            editor.putString("LastUsedProjects", TextUtils.join("--;--", lastUsedProjectsArray));
-            editor.commit();
-
-            finish();
-        }
-    }
-
-    private boolean onItemLongClick(int position) {
-
-        QFieldProjectListItem item = (QFieldProjectListItem) list.getAdapter().getItem(position);
-        if (item.getType() != QFieldProjectListItem.TYPE_ITEM) {
-            return true;
-        }
-        File file = item.getFile();
-        if (! file.isDirectory()){
-            return true;
-        }
-
-        String favoriteDirs = sharedPreferences.getString("FavoriteDirs", null);
-        ArrayList<String> favoriteDirsArray = new ArrayList<String>();
-        if (favoriteDirs != null){
-            favoriteDirsArray = new ArrayList<String>(Arrays.asList(favoriteDirs.split("--;--")));
-        }
-
-        // If the element is already present, delete it. It will be added again in the last position
-        favoriteDirsArray.remove(file.getPath());
-
-        // First activity
-        if (! getIntent().hasExtra("path")) {
-            // Remove the recent projects from shared preferences
-            favoriteDirs = TextUtils.join("--;--", favoriteDirsArray);
-            if (favoriteDirs == ""){
-                favoriteDirs = null;
+        // Update fetch button.
+        boolean found = false;
+        for(int index = 0; index < positions.size(); index++)
+            if(positions.valueAt(index)) {
+                found = true;
+                break;
             }
 
-            editor.putString("FavoriteDirs", favoriteDirs);
-            editor.commit();
-            drawView();
-
-            Toast.makeText(this, file.getName() + " " + getString(R.string.removed_from_favorites), Toast.LENGTH_LONG).show();
-        } else {
-            // Write the recent projects into the shared preferences
-            favoriteDirsArray.add(file.getPath());
-            editor.putString("FavoriteDirs", TextUtils.join("--;--", favoriteDirsArray));
-            editor.commit();
-
-            Toast.makeText(this, file.getName() + " " + getString(R.string.added_to_favorites), Toast.LENGTH_LONG).show();
-        }
-
-        return true;
+        model.setFetchEnabled(found);
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -188,5 +118,52 @@ public class QFieldDCSProjectActivity extends Activity {
             }
             finish();
         }
+    }
+
+    public Lifecycle getLifecycle() {
+        return lifecycleRegistry;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        lifecycleRegistry.markState(Lifecycle.State.STARTED);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        lifecycleRegistry.markState(Lifecycle.State.RESUMED);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        lifecycleRegistry.markState(Lifecycle.State.DESTROYED);
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        store.clear();
+    }
+
+    @Override
+    public ViewModelStore getViewModelStore() {
+        return store;
+    }
+
+    @Override
+    public <T extends ViewModel> T create(Class<T> aClass) {
+        T instance;
+
+        try {
+            instance = aClass.newInstance();
+
+        } catch (Exception ex) {
+            throw new RuntimeException("Invalid class type.");
+        }
+
+        return instance;
     }
 }

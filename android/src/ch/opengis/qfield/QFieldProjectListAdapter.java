@@ -1,8 +1,5 @@
 package ch.opengis.qfield;
- 
-import java.util.ArrayList;
-import java.io.File;
- 
+
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,12 +8,14 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import java.util.List;
+
 public class QFieldProjectListAdapter extends ArrayAdapter<QFieldProjectListItem> {
  
         private final Context context;
-        private final ArrayList<QFieldProjectListItem> values;
+        private final List<QFieldProjectListItem> values;
  
-        public QFieldProjectListAdapter(Context context, ArrayList<QFieldProjectListItem> values) {
+        public QFieldProjectListAdapter(Context context, List<QFieldProjectListItem> values) {
  
             super(context, android.R.layout.simple_list_item_2, android.R.id.text1, values);
  
@@ -30,14 +29,12 @@ public class QFieldProjectListAdapter extends ArrayAdapter<QFieldProjectListItem
             LayoutInflater inflater = (LayoutInflater) context
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
  
-            View rowView = null;
-
             QFieldProjectListItem item = values.get(position);
             
-            rowView = inflater.inflate(R.layout.list_project_item, parent, false);
+            View rowView = inflater.inflate(R.layout.list_project_item, parent, false);
  
-            ImageView imgView = (ImageView) rowView.findViewById(R.id.item_icon); 
-            TextView titleView = (TextView) rowView.findViewById(R.id.item_title);
+            ImageView imgView = (ImageView)rowView.findViewById(R.id.item_icon);
+            TextView titleView = (TextView)rowView.findViewById(R.id.item_title);
 
             imgView.setImageResource(item.getImageId());
             imgView.setImageAlpha(172);
@@ -45,7 +42,7 @@ public class QFieldProjectListAdapter extends ArrayAdapter<QFieldProjectListItem
 
             if (item.getType() == QFieldProjectListItem.TYPE_SEPARATOR){
                 rowView = inflater.inflate(R.layout.list_separator, null);
-                TextView separatorView = (TextView) rowView.findViewById(R.id.separator);
+                TextView separatorView = (TextView)rowView.findViewById(R.id.separator);
                 separatorView.setText(item.getText());
             }
             
