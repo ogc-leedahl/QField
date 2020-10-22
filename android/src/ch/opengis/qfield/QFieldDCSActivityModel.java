@@ -62,8 +62,10 @@ public class QFieldDCSActivityModel extends ViewModel {
                 JSONObject json = webClient.getJson();
                 JSONArray layers = json.getJSONArray("layers");
                 for (int i = 0; i < layers.length(); i++) {
-                    String layerId = layers.getString(i);
-                    values.add(new QFieldProjectListItem(new File(layerId), layerId,
+                    JSONObject layer = layers.getJSONObject(i);
+                    String layerId = layer.getString("name");
+                    String title = layer.getString("title");
+                    values.add(new QFieldProjectListItem(new File(layerId), title,
                             android.R.drawable.checkbox_off_background, QFieldProjectListItem.TYPE_ITEM));
                 }
                 setSucceeded(true);
