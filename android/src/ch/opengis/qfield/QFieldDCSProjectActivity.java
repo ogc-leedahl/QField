@@ -13,8 +13,18 @@ import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
 public class QFieldDCSProjectActivity extends Activity implements LifecycleOwner, ViewModelStoreOwner, ViewModelProvider.Factory {
 
@@ -69,6 +79,10 @@ public class QFieldDCSProjectActivity extends Activity implements LifecycleOwner
                 QFieldDCSProjectActivity.this.onItemClick(position);
             }
         });
+
+        // Fetch project
+        OnFetch onFetch = new OnFetch(list);
+        fetch.setOnClickListener(onFetch);
     }
 
     public void onRestart(){
@@ -77,6 +91,100 @@ public class QFieldDCSProjectActivity extends Activity implements LifecycleOwner
         drawView();
         lifecycleRegistry.markState(Lifecycle.State.RESUMED);
         super.onRestart();
+    }
+
+    private static class OnFetch implements View.OnClickListener {
+        private ListView list;
+
+        OnFetch(ListView list) { this.list = list; }
+
+        @Override
+        public void onClick(View v) {
+            Log.d(TAG, "OnFetch.onClick ");
+            try {
+                // Get the project file
+                JSONObject json = new JSONObject();
+                JSONArray layers = new JSONArray();
+                SparseBooleanArray positions = list.getCheckedItemPositions();
+                for (int i = 0; i < positions.size(); i++) {
+                    int key = positions.keyAt(i);
+                    boolean checked = positions.get(key);
+                    if (checked) {
+                        QFieldProjectListItem item = (QFieldProjectListItem)list.getAdapter().getItem(key);
+                        String name = item.getFile().getName();
+                        layers.put(name);
+                    }
+                }
+                json.put("layers", layers);
+
+                WebClient webClient = new WebClient(WebClient.Method.PROJECT_FILE, json.toString());
+                Thread webClientThread = new Thread(webClient);
+                webClientThread.start();
+                try {
+                    webClientThread.join();
+
+                } catch(Exception ex) {
+                    // Thread interrupted; Nothing to do in this situation; execution continues.
+                }
+
+                // Save Project File in a random directory name.
+                String directory = UUID.randomUUID().toString();
+                createFile(directory, "project.qgs", webClient.getText());
+                
+                // Get layer files
+                Element root = webClient.getXml();
+                NodeList layerNodes = root.getElementsByTagName("layer-tree-layer");
+                for (int nodeIndex = 0; nodeIndex < layerNodes.getLength(); nodeIndex++) {
+                    Element layer = (Element) layerNodes.item(nodeIndex);
+                    String filename = new File(layer.getAttribute("source")).getName();
+                    String id = layer.getAttribute("id");
+                    JSONObject request = new JSONObject();
+                    request.put("layer", id);
+
+                    webClient = new WebClient(WebClient.Method.LAYER_FILE, request.toString());
+                    webClientThread = new Thread(webClient);
+                    webClientThread.start();
+                    try {
+                        webClientThread.join();
+
+                    } catch(Exception ex) {
+                        // Thread interrupted; Nothing to do in this situation; execution continues.
+                    }
+
+                    // Save the layer file
+                    createFile(directory, filename, webClient.getText());
+                }
+
+            } catch (JSONException jsonException) {
+                // Do nothing
+            }
+        }
+
+        private void createFile(String subdirectory, String filename, String body) {
+            String path = "/sdcard/gis";
+            File directory = new File(path);
+            if (!directory.exists()) directory.mkdir();
+            path += "/" + subdirectory;
+            directory = new File(path);
+            directory.mkdir();
+            directory.setReadable(true);
+
+            path += "/" + filename;
+            File file = new File(path);
+            try {
+                file.createNewFile();
+                FileOutputStream stream = new FileOutputStream(file);
+                stream.write(body.getBytes(StandardCharsets.UTF_8));
+                stream.flush();
+                stream.close();
+                file.setReadable(true);
+            }
+            catch (IOException ex) {
+                // Nothing to do
+            }
+            int x = 1;
+            x++;
+        } // 4d4d93c8-1500-493a-bb8f-86176ff05750
     }
 
     private void onItemClick(int position) {
